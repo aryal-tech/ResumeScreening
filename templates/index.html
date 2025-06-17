@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Resume Matcher</title>
+
+</head>
+<body>
+<h2>Upload Job Description and Resumes</h2>
+<form method="post" enctype="multipart/form-data">
+<label>Job Description (PDF):</label><br>
+<input type="file" name="jd_file" accept=".pdf" required><br><br>
+
+<label>Resumes (PDFs):</label><br>
+<input type="file" name="resume_files" accept=".pdf" multiple required><br><br>
+
+<input type="submit" value="Match Resumes">
+</form>
+
+{% if results %}
+<h3>Ranked Resumes:</h3>
+<ul>
+{% for name, score in results %}
+<li><strong>{{ name }}</strong> — Similarity Score: {{ score|round(4) }}</li>
+{% endfor %}
+</ul>
+{% endif %}
+</body>
+</html>
