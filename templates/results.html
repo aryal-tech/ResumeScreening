@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Results | Resume Screener{% endblock %}
+{% block content %}
+<h2>Processed Resumes</h2>
+
+<!-- === Filter + Home toolbar === -->
+<form id="filter-form" method="get" action="{{ url_for('results') }}" class="mb-3" style="display:flex;gap:.75rem;align-items:center;">
+  <label for="min" style="font-weight:600;">Filter resumes ≥</label>
+  <select id="min" name="min">
+    {% for v in [0.2,0.3,0.4,0.5,0.6] %}
+      <option value="{{ '%.1f' % v }}" {% if selected_min and selected_min == v %}selected{% endif %}>
+        {{ '%.1f' % v }}
+      </option>
+    {% endfor %}
+  </select>
+  <!-- <button type="submit" class="btn">Apply</button> -->
+
+  <button type="button" id="btn-home" class="btn" style="margin-left:auto;">
+    Go to Home
+  </button>
+</form>
+
+{% if errors and errors|length %}
+  <div class="errors">
+    <h4>Errors</h4>
+    <ul>
+      {% for e in errors %}<li>{{ e }}</li>{% endfor %}
+    </ul>
+  </div>
+{% endif %}
+
+<table class="results-table">
+  <thead>
+    <tr>
+      <th>S.N</th>
+      <th>Resume Name</th>
+      <th>Email</th>
+      <th>Duplicate Resume</th>
+      <th>Similarity (0–1)</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in results %}
+    <tr>
+      <td>{{ r.sn }}</td>
+      <td>{{ r.name }}</td>
+      <td>{{ r.email or '' }}</td>
+      <td>{{ r.duplicate or '—' }}</td>
+      <td>{{ '%.2f' % r.score }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if not results %}
+<p>No results for the current filter. Try lowering the threshold, or go to
+  <a href="{{ url_for('actual_calculation') }}">Actual Calculation</a> to run screening.</p>
+{% endif %}
+{% endblock %}

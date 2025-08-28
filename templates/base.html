@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}Automated Resume Screening and Ranking{% endblock %}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script defer src="{{ url_for('static', filename='app.js') }}"></script>
+
+  <style>
+    .navbar {
+      background: #e6f2ff;
+      border-bottom: 1px solid #cfe4ff;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .navbar a { text-decoration: none; margin-right: 12px; }
+    .flash-container { max-width: 900px; margin: 16px auto; padding: 0 16px; }
+    .alert { padding: 12px; border-radius: 6px; margin-bottom: 10px; font-weight: 600; }
+    .alert-success { background: #e8f7ed; border: 1px solid #bfe8cb; color: #1b4332; }
+    .alert-error { background: #ffefef; border: 1px solid #f5b7b7; color: #7c1c1c; }
+    .container { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
+    .footer { margin-top: 40px; padding: 16px; border-top: 1px solid #eef2f7; text-align: center; color: #5b6b7a; }
+  </style>
+</head>
+<body>
+  <header class="navbar">
+    <div class="brand">
+      <a href="{{ url_for('home') }}">ResumeScreener</a>
+    </div>
+    <nav>
+      <a href="{{ url_for('home') }}">Home</a>
+      <a href="{{ url_for('about') }}">About</a>
+    </nav>
+    <div class="nav-auth">
+      {% if session.get('user_id') %}
+        <span>Hi, {{ session.get('company_name') or session.get('email') }}</span>
+        <a href="{{ url_for('logout') }}">Logout</a>
+      {% else %}
+        <a href="{{ url_for('login') }}">Login</a>
+        <a href="{{ url_for('register') }}">Sign Up</a>
+      {% endif %}
+    </div>
+  </header>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-container">
+        {% for category, message in messages %}
+          <div class="alert {{ 'alert-error' if category == 'error' else 'alert-success' }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    {% block footer %}{% endblock %}
+  </footer>
+</body>
+</html>

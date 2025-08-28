@@ -1,44 +1,34 @@
-
-from pathlib import Path
-from typing import List
+import re
 from pypdf import PdfReader
+from io import BytesIO
 
-UPLOAD_ROOT   = Path("uploads")
-JD_FILE_PATH  = UPLOAD_ROOT / "job_description.pdf"     
-RESUMES_DIR   = UPLOAD_ROOT / "resumes"                  
+def extract_text(file_bytes):
+    """Extract text from PDF file bytes."""
+    reader = PdfReader(BytesIO(file_bytes))
+    text = ""
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text
+    return text
 
+def extract_exact_section(text, section_name):
+    """Extract exact section content by heading using regex."""
+    pattern = rf"(?i){section_name}\s*(.*?)(?=\n[A-Z][^\n]*\n|$)"
+    match = re.search(pattern, text, re.DOTALL)
+    if match:
+        return section_name + '\n' + match.group(1).strip()
+    return ""
 
-def extract_text(pdf_path: Path) -> str:
-    """Read a PDF from *pdf_path* and return its full text."""
-    reader = PdfReader(str(pdf_path))
-    return "".join(page.extract_text() or "" for page in reader.pages)
+def boost_resume_sections(text):
+    """Boost skills and experience sections for similarity scoring."""
+    skills = extract_exact_section(text, "skills")
+    experience = extract_exact_section(text, "experience")
+    boosted_text = text + " " + (skills * 2) + " " + (experience * 2)
+    return boosted_text
 
-
-def get_job_text() -> str:
-    """Return the text of the (latest) uploaded job‑description PDF."""
-    if not JD_FILE_PATH.exists():
-        raise FileNotFoundError(
-            "No job description found — did you upload jd_file in index.html?"
-        )
-    job_text = extract_text(JD_FILE_PATH)
-    print("Job Description (first 500 chars):\n", job_text[:500])
-    return job_text
-
-
-def get_resume_texts() -> List[str]:
-    """Return a list of texts for every PDF sitting in uploads/resumes/."""
-    if not RESUMES_DIR.exists():
-        raise FileNotFoundError(
-            "No resumes directory found — did you upload resume_files in index.html?"
-        )
-
-    resume_paths = sorted(RESUMES_DIR.glob("*.pdf"))
-    if not resume_paths:
-        raise FileNotFoundError("No resumes were uploaded.")
-
-    texts = []
-    for idx, path in enumerate(resume_paths, start=1):
-        txt = extract_text(path)
-        print(f"\nResume {idx} ({path.name}) first 300 chars:\n", txt[:300])
-        texts.append(txt)
-    return texts
+def extract_email(text):
+    """Extract the first email address found in the text."""
+    email_pattern = r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+"
+    matches = re.findall(email_pattern, text)
+    return matches[0] if matches else ""

@@ -1,35 +1,152 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Automated Resume Screening and Ranking System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #f7f7f7;
+    }
+
+    h2, h3 {
+      color: #333;
+    }
+
+    form {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 6px;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+    }
+
+    label {
+      font-weight: bold;
+    }
+
+    input[type="file"] {
+      margin-bottom: 15px;
+    }
+
+    input[type="submit"] {
+      padding: 8px 16px;
+      font-size: 14px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #0056b3;
+    }
+
+    .error-msg {
+      color: #721c24;
+      background-color: #f8d7da;
+      border: 1px solid #f5c6cb;
+      padding: 10px 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #fff;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    }
+
+    th, td {
+      padding: 10px;
+      text-align: left;
+    }
+
+    thead {
+      background-color: #007BFF;
+      color: white;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      font-size: 12px;
+      background-color: #dc3545;
+      color: white;
+      border-radius: 12px;
+    }
+  </style>
 </head>
 <body>
+  
+
+
   <h2>Upload Job Description and Resumes</h2>
+
+  <!-- Display any error messages -->
+  {% if error %}
+    <div class="error-msg"><strong>Error:</strong> {{ error }}</div>
+  {% endif %}
+
+  {% if resume_errors %}
+    <div class="error-msg">
+      <strong>Skipped Files:</strong>
+      <ul>
+        {% for err in resume_errors %}
+          <li>{{ err }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
   <form method="post" enctype="multipart/form-data">
-    <label>Job Description (PDF):</label><br>
-    <input type="file" name="jd_file" accept=".pdf" required><br><br>
+    <label for="jd_file">Job Description (PDF):</label><br />
+    <input id="jd_file" type="file" name="jd_file" accept=".pdf" required /><br />
 
-    <label>Resumes (PDFs):</label><br>
-    <input type="file" name="resume_files" accept=".pdf" multiple required><br><br>
+    <label for="resume_files">Resumes (PDFs):</label><br />
+    <input id="resume_files" type="file" name="resume_files" accept=".pdf" multiple required /><br />
 
-    <input type="submit" value="Match Resumes">
+    <input type="submit" value="Match Resumes" />
   </form>
 
- {% if results %}
-  <h3>Processed Resumes</h3>
-  {% for r in results %}
-    <div style="border:1px solid #ccc; margin:10px; padding:10px;">
-      <strong>Name:</strong> {{ r.name }}<br>
-      <strong>Status:</strong> {{ r.status }}<br>
-      <strong>Extracted Text:</strong><br>
-      <pre>{{ r.raw }}</pre>
-      <strong>Cleaned Text:</strong><br>
-      <pre>{{ r.cleaned }}</pre>
-      <strong>Hashed Value:</strong><br>
-      <code>{{ r.hash }}</code>
-    </div>
-  {% endfor %}
-{% endif %}
+  {% if results %}
+    <h3>Processed Resumes</h3>
+    <table border="1" cellpadding="8" cellspacing="0">
+      <thead>
+        <tr>
+          <th>S.N</th>
+          <th>Resume Name</th>
+          <th>Email</th>
+          <th>Duplicate Resume</th>
+          <th>Similarity Score (%)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+        <tr>
+          <td>{{ r.sn }}</td>
+          <td>{{ r.name }}</td>
+          <td>{{ r.email }}</td>
+          <td>
+            {% if r.duplicate %}
+              <span class="badge">Duplicate of {{ r.duplicate }}</span>
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td>{{ (r.score * 100) | round(2) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
 
+</body>
 </html>

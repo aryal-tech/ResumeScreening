@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Actual Calculation | Resume Screener{% endblock %}
+{% block content %}
+<h2>Upload Job Description and Resumes</h2>
+
+<form id="calc-form"
+      method="POST"
+      action="{{ url_for('process') }}"
+      enctype="multipart/form-data"
+      class="form upload-form">
+
+  <div class="form-row">
+    <label for="jd_file">Job Description (PDF)</label>
+    <input type="file"
+           id="jd_file"
+           name="jd_file"
+           accept="application/pdf,.pdf"
+           required>
+    <small class="hint">Only real PDFs are accepted (we verify the %PDF signature).</small>
+  </div>
+
+  <div class="form-row">
+    <label for="resume_files">Resumes (PDFs, multiple allowed)</label>
+    <input type="file"
+           id="resume_files"
+           name="resume_files"
+           accept="application/pdf,.pdf"
+           multiple
+           required>
+  </div>
+
+  <button class="btn btn-primary" type="submit">Run Screening</button>
+</form>
+{% endblock %}

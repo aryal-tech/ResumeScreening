@@ -1,17 +1,58 @@
 import regex as re
-from core.extract import get_job_text, get_resume_texts
-from database.db_connect import insert_document
 
-# ----------------------------------------------------------------------
-# Define stop words
-# ----------------------------------------------------------------------
+# Compound replacements
+COMPOUND_TERMS = {
+    'c++': 'cpp_language',
+    'c#': 'csharp_language',
+    '.net': 'dotnet_framework',
+    'ci/cd': 'cicd_pipeline',
+    'ci-cd': 'cicd_pipeline',
+    'data science': 'data_science',
+    'machine learning': 'machine_learning',
+    'node.js': 'nodejs',
+    'git': 'git',
+    'github': 'github_platform',
+    'html5': 'html5'
+}
+
+# Manual synonym normalization for resume domain
+SYNONYM_MAP = {
+    'developed': 'build',
+    'created': 'build',
+    'built': 'build',
+    'designed': 'design',
+    'implemented': 'implement',
+    'executed': 'implement',
+    'managed': 'lead',
+    'led': 'lead',
+    'supervised': 'lead',
+    'analyzed': 'analyze',
+    'examined': 'analyze',
+    'evaluated': 'analyze',
+    'deployed': 'launch',
+    'released': 'launch',
+    'teamwork': 'collaboration',
+    'collaborated': 'collaboration',
+    'coordinated': 'collaboration',
+    'achieved': 'accomplish',
+    'accomplished': 'accomplish',
+    'resolved': 'solve',
+    'fixed': 'solve',
+    'troubleshot': 'solve'
+}
+
+def preserve_compounds(text):    
+    terms_sorted = sorted(COMPOUND_TERMS, key=len, reverse=True)
+    for term in terms_sorted:
+        text = re.sub(r'(?i)\b{}\b'.format(re.escape(term)), COMPOUND_TERMS[term], text)
+    return text
+
 stop_words = {
     'the', 'i', 'is', 'in', 'and', 'to', 'has', 'that', 'of', 'a', 'using',
     'an', 'on', 'for', 'with', 'it', 'as', 'this', 'by', 'be', 'are',
     'was', 'were', 'at', 'from', 'or', 'but', 'not', 'have', 'had',
     'which', 'they', 'their', 'you', 'your', 'we', 'he', 'she', 'his',
-    'her', 'them', 'our', 'out', 'can'
-}.union({
+    'her', 'them', 'our', 'out', 'can',
     'experience', 'skills', 'responsible', 'proficient', 'knowledge',
     'ability', 'expertise', 'team', 'member', 'years', 'work',
     'career', 'job', 'role', 'organization', 'position', 'seeking',
@@ -23,13 +64,10 @@ stop_words = {
     'effective', 'efficient', 'self', 'starter', 'dependable',
     'references', 'available', 'upon', 'request', 'apply', 'making',
     'enthusiast'
-})
+}
 
-# ----------------------------------------------------------------------
-# Manual tokenizer that preserves tech terms like C++, C#, .NET, CI/CD
-# ----------------------------------------------------------------------
 def tokenize(text: str):
-    allowed_chars = set("abcdefghijklmnopqrstuvwxyz0123456789+#./-")
+    allowed_chars = set("abcdefghijklmnopqrstuvwxyz0123456789_")
     tokens, word = [], ''
     for char in text:
         if char in allowed_chars:
@@ -42,16 +80,10 @@ def tokenize(text: str):
         tokens.append(word)
     return tokens
 
-# ----------------------------------------------------------------------
-# Lemmatization function with custom exceptions
-# ----------------------------------------------------------------------
 def lemmatization(word: str):
     exception = {
-        # General irregular forms
         "men": "man", "women": "woman", "children": "child",
         "mice": "mouse", "geese": "goose", "feet": "foot", "teeth": "tooth",
-
-        # Verb normalization (past tense → base form)
         "ran": "run", "went": "go", "studies": "study", "studied": "study",
         "led": "lead", "wrote": "write", "written": "write",
         "built": "build", "made": "make", "held": "hold",
@@ -80,29 +112,16 @@ def lemmatization(word: str):
 
     return word
 
-# ----------------------------------------------------------------------
-# Preprocessing: lowercase, clean, tokenize, lemmatize, remove stopwords
-# ----------------------------------------------------------------------
-def preprocess_text(text):
+def normalize_synonyms(word: str):
+    return SYNONYM_MAP.get(word, word)
+
+def preprocess_text(text: str):
     text = text.lower()
-    text = re.sub(r'[^a-z0-9\s\+\#\.\-/]', ' ', text)
+    text = preserve_compounds(text)
+    text = re.sub(r'[^a-z0-9_\s]', ' ', text)
     tokens = tokenize(text)
-    processed = [lemmatization(w) for w in tokens if w not in stop_words]
+    processed = [
+        normalize_synonyms(lemmatization(w))
+        for w in tokens if w not in stop_words
+    ]
     return " ".join(processed)
-
-# ----------------------------------------------------------------------
-# Orchestrator: process job and resumes, store in DB
-# ----------------------------------------------------------------------
-def final_text():
-    job_text = get_job_text()
-    cleaned_job_desc = preprocess_text(job_text)
-    print("\nCleaned Job Description:\n", cleaned_job_desc[:500])
-    insert_document("Job_Description", "job", job_text, cleaned_job_desc)
-
-    resume_raw_list = get_resume_texts()
-    for idx, resume_raw in enumerate(resume_raw_list, start=1):
-        cleaned = preprocess_text(resume_raw)
-        filename = f"Resume_{idx}"
-        insert_document(filename, "resume", resume_raw, cleaned)
-
-    return job_text
