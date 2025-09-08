@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ===== Register form validation (now includes password rule) =====
+  // ===== Register form validation =====
   const regForm = $("#register-form");
   if (regForm){
     regForm.addEventListener("submit",(e)=>{
@@ -53,7 +53,6 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!cn || !email || !pw){
         e.preventDefault(); toast("All fields are required","error"); return;
       }
-
       const passOk = /^(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{8,}$/.test(pw);
       if (!passOk){
         e.preventDefault();
@@ -62,30 +61,59 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ===== Results toolbar actions (Top-N) =====
-  const filterForm = $("#filter-form");
-  const homeBtn = $("#btn-home");
-  if (filterForm){
-    const sel = filterForm.querySelector("#topN");
-    if (sel){
-      sel.addEventListener("change", () => filterForm.submit()); // auto-apply on change
-    }
-  }
+  // ===== Results toolbar: numeric "Show top" with capping =====
+  const rowsTbody = document.getElementById('resumeRows');
+  const topInput  = document.getElementById('topCount');
+  const statusEl  = document.getElementById('topStatus');
+  const homeBtn   = document.getElementById('btn-home');
+
   if (homeBtn){
     homeBtn.addEventListener("click", () => { window.location.href = "/"; });
   }
 
-  // ===== Resume Detail Modal =====
+  if (rowsTbody && topInput){
+    const allRows = Array.from(rowsTbody.querySelectorAll('tr'));
+    const total   = allRows.length;
+
+    function applyTop(){
+      let n = parseInt(topInput.value, 10);
+      if (isNaN(n) || n < 1) n = total;
+      const capped = Math.min(Math.max(1, n), total);
+
+      allRows.forEach((tr, idx) => {
+        tr.style.display = (idx < capped) ? "" : "none";
+      });
+
+      if (statusEl){
+        if (n > total) {
+          statusEl.textContent = `Showing ${capped} of ${total} (capped to available)`;
+          statusEl.classList.remove('text-gray-600');
+          statusEl.classList.add('text-orange-600');
+        } else {
+          statusEl.textContent = `Showing ${capped} of ${total}`;
+          statusEl.classList.remove('text-orange-600');
+          statusEl.classList.add('text-gray-600');
+        }
+      }
+    }
+
+    // initial + live updates
+    applyTop();
+    topInput.addEventListener('input', applyTop);
+    topInput.addEventListener('change', applyTop);
+  }
+
+  // ===== Resume Detail Modal (LinkedIn removed) =====
   const modal = $("#resume-modal");
   const modalTitle = $("#modal-title");
   const modalEmail = $("#modal-email");
   const modalPhone = $("#modal-phone");
-  const modalLinkedIn = $("#modal-linkedin");
-  const modalText = $("#modal-text");
+  const modalText  = $("#modal-text");
   const modalClose = $("#modal-close");
 
-  function openModal(){ modal.classList.add("open"); modal.setAttribute("aria-hidden","false"); }
-  function closeModal(){ modal.classList.remove("open"); modal.setAttribute("aria-hidden","true"); }
+  function openModal(){ if(modal){ modal.classList.add("open"); modal.setAttribute("aria-hidden","false"); } }
+  function closeModal(){ if(modal){ modal.classList.remove("open"); modal.setAttribute("aria-hidden","true"); } }
+
   if (modalClose) modalClose.addEventListener("click", closeModal);
   if (modal) modal.addEventListener("click", (e)=>{ if(e.target===modal) closeModal(); });
   document.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeModal(); });
@@ -100,17 +128,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await resp.json();
       if (!data.ok) throw new Error(data.error || "Failed to load resume detail");
 
-      modalTitle.textContent = data.filename || "Resume";
-      modalEmail.textContent = data.email || "—";
-      modalPhone.textContent = data.phone || "—";
-      if (data.linkedin) {
-        modalLinkedIn.textContent = data.linkedin;
-        modalLinkedIn.href = data.linkedin.startsWith("http") ? data.linkedin : ("https://" + data.linkedin);
-      } else {
-        modalLinkedIn.textContent = "—";
-        modalLinkedIn.removeAttribute("href");
-      }
-      modalText.textContent = data.text || "";
+      if (modalTitle) modalTitle.textContent = data.filename || "Resume";
+      if (modalEmail) modalEmail.textContent = data.email || "—";
+      if (modalPhone) modalPhone.textContent = data.phone || "—";
+      if (modalText)  modalText.textContent  = data.text || "";
 
       openModal();
     } catch (err) {
@@ -119,6 +140,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+
 // --- Nav active (in case Jinja couldn't add .active) ---
 document.addEventListener("DOMContentLoaded", () => {
   const path = window.location.pathname;
@@ -127,9 +149,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-// --- Simple accordion fallback (for browsers without <details> polish) ---
+// --- Simple accordion fallback ---
 document.addEventListener("click", (e)=>{
   const sum = e.target.closest('summary');
   if (!sum) return;
-  // allow default toggle; just add a tiny ripple/visual if needed later
 });

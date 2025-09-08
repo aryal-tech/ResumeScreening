@@ -3,20 +3,20 @@
 {% block content %}
 <h2>Processed Resumes</h2>
 
-<!-- === Top-N + Home toolbar === -->
-<form id="filter-form" method="get" action="{{ url_for('results') }}" class="mb-3" style="display:flex;gap:.75rem;align-items:center;">
-  <label for="topN" style="font-weight:600;">Show top</label>
-  <select id="topN" name="top">
-    {% for v in [5,10,15,20,30,35] %}
-      <option value="{{ v }}" {% if selected_top and selected_top == v %}selected{% endif %}>{{ v }}</option>
-    {% endfor %}
-  </select>
+<!-- === Top-N + Home toolbar (number input) === -->
+<div id="results-toolbar" class="mb-3" style="display:flex;gap:.75rem;align-items:center;">
+  <label for="topCount" style="font-weight:600;">Show top</label>
+  <input id="topCount" type="number" min="1" step="1"
+         value="{{ selected_top or 10 }}"
+         class="border rounded px-2 py-1" style="width: 6rem;">
   <span style="opacity:.7;">by S.N</span>
+
+  <span id="topStatus" class="text-sm" style="margin-left:.5rem;opacity:.75;"></span>
 
   <button type="button" id="btn-home" class="btn" style="margin-left:auto;">
     Go to Home
   </button>
-</form>
+</div>
 
 {% if errors and errors|length %}
   <div class="errors">
@@ -37,7 +37,7 @@
       <th>Similarity (0–1)</th>
     </tr>
   </thead>
-  <tbody>
+  <tbody id="resumeRows">
     {% for r in results %}
     <tr>
       <td>{{ r.sn }}</td>
@@ -50,8 +50,9 @@
         {% if r.score is not none %}
           {{ '%.2f' % r.score }}
         {% else %}
-          —</td>
+          — 
         {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
