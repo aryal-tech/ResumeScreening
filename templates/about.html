@@ -1,6 +1,34 @@
 {% extends "base.html" %}
-{% block title %}About | Resume Screener{% endblock %}
+{% block title %}About | ResumeScreener{% endblock %}
 {% block content %}
-<h2>About</h2>
-<p>This tool ranks candidate resumes against a Job Description using your TF-IDF and cosine similarity pipeline.</p>
+<section class="section">
+  <h1>About ResumeScreener</h1>
+  <p>ResumeScreener ranks candidate resumes against a Job Description using TF-IDF and cosine similarity, enhanced by domain-aware preprocessing.</p>
+</section>
+
+<section class="section two-col">
+  <div class="card">
+    <h3>How scoring works</h3>
+    <p>We extract text from PDFs, normalize compounds (e.g., C++, .NET), unify synonyms (e.g., developed/created → build), remove fluff, and then compute TF-IDF vectors. Cosine similarity gives a 0–1 score.</p>
+    <ul class="bullet">
+      <li>JD priority terms boosted ×<strong>1.5</strong></li>
+      <li>Resume key section terms boosted ×<strong>2.0</strong></li>
+      <li>Duplicates detected per run and excluded from scoring</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Data handling</h3>
+    <p>Processing happens on your machine/server. We keep only what’s required to show results and improve accuracy for your session.</p>
+    <ul class="bullet">
+      <li>PDF-only input</li>
+      <li>Session-scoped duplicate detection</li>
+      <li>Optional persistence of extracted text for detail view</li>
+    </ul>
+  </div>
+</section>
+
+<section class="section">
+  <h3>Contact</h3>
+  <p>Email: <a href="mailto:support@resumescreener.local">support@resumescreener.local</a></p>
+</section>
 {% endblock %}

@@ -2,14 +2,48 @@
 {% block title %}Sign Up | Resume Screener{% endblock %}
 {% block content %}
 <h2>Create your account</h2>
-<form id="register-form" method="POST" class="form">
+
+<form id="register-form" method="POST" class="form" autocomplete="off">
   <label>Company Name</label>
-  <input type="text" name="company_name" placeholder="Company Name" required>
+  <input
+    type="text"
+    name="company_name"
+    placeholder="Company Name"
+    required
+    autocomplete="organization"
+    value=""
+  >
+
   <label>Email</label>
-  <input type="email" name="email" placeholder="you@company.com" required>
+  <input
+    type="email"
+    name="email"
+    placeholder="you@company.com"
+    required
+    autocomplete="email"
+    autocapitalize="none"
+    spellcheck="false"
+    value=""
+  >
+
   <label>Password</label>
-  <input type="password" name="password" placeholder="Create a strong password" required>
+  <!-- ≥8 chars, ≥1 uppercase, ≥1 special -->
+  <input
+    type="password"
+    name="password"
+    placeholder="Create a strong password"
+    required
+    pattern="^(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{8,}$"
+    title="At least 8 characters, including 1 uppercase letter and 1 special character"
+    autocomplete="new-password"
+    value=""
+  >
+  <small style="display:block;opacity:.75;margin:4px 0 12px;">
+    Password must be at least 8 characters and include one uppercase letter and one special character.
+  </small>
+
   <button class="btn btn-primary" type="submit">Sign Up</button>
 </form>
+
 <p>Already have an account? <a href="{{ url_for('login') }}">Log in</a>.</p>
 {% endblock %}

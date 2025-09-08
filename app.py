@@ -1,18 +1,20 @@
 # app.py
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+from flask import make_response
 import os, hashlib
 from tempfile import TemporaryDirectory
 
-# ==== imports (add extract_exact_section) ====
-from core.extract import extract_text, extract_email, extract_exact_section
+# ==== imports (add extract_linkedin, extract_phone) ====
+from core.extract import extract_text, extract_email, extract_exact_section, extract_linkedin, extract_phone
 from core.preprocess import preprocess_text
 from core.tf_idf import compute_tfidf
 from core.similarity import cosine_similarity
 from database.db_connect import (
     get_connection,
     insert_document,
+    get_document_by_filename,   # NEW
 )
 
 app = Flask(__name__)
@@ -96,19 +98,43 @@ def register():
         company_name = request.form.get("company_name", "").strip()
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
+
         if not company_name or not email or not password:
             flash("All fields are required", "error")
-            return render_template("register.html"), 400
+            # Return non-cached blank form on error
+            resp = make_response(render_template("register.html"), 400)
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"] = "no-cache"
+            return resp
+
+        # PASSWORD RULE (server-side): ≥8 chars, ≥1 uppercase, ≥1 special
+        import re
+        if not re.match(r"^(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{8,}$", password):
+            flash("Password must be ≥8 chars and include an uppercase and a special character.", "error")
+            resp = make_response(render_template("register.html"), 400)
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"] = "no-cache"
+            return resp
+
         if find_user_by_email(email):
             flash("Email already registered", "error")
-            return render_template("register.html"), 400
+            resp = make_response(render_template("register.html"), 400)
+            resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            resp.headers["Pragma"] = "no-cache"
+            return resp
 
         uid = create_user(company_name, email, password)
         session["user_id"] = uid
         session["email"] = email
         session["company_name"] = company_name
         return redirect(url_for("home"))
-    return render_template("register.html")
+
+    # GET: serve a fresh, non-cached blank form
+    resp = make_response(render_template("register.html"))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
+
 
 @app.route("/logout")
 def logout():
@@ -146,8 +172,9 @@ def collect_jd_priority_terms(jd_raw_text: str):
 def process():
     """
     Per-run policy:
-      - Detect duplicates only within THIS run (no 'Already in DB' labels).
-      - Compute similarity once for the first copy; reuse for duplicates.
+      - Detect duplicates only within THIS run.
+      - Do not compute similarity for duplicates (display '—').
+      - Block if the same PDF is uploaded as both JD and Resume.
       - Similarity is 0..1 (rounded to 2 decimals).
     """
     results, errors = [], []
@@ -164,13 +191,14 @@ def process():
             return redirect(url_for("actual_calculation"))
 
         jd_bytes = jd_file.read()
-        jd_file.stream.seek(0)  # not strictly needed after read, but harmless
+        jd_file.stream.seek(0)
         jd_text = extract_text(jd_bytes)
         jd_cleaned = preprocess_text(jd_text)
         insert_document("job_description.pdf", "job", jd_text, jd_cleaned)
 
         jd_tokens = jd_cleaned.split()
         jd_priority_terms = collect_jd_priority_terms(jd_text)
+        jd_hash = hashlib.sha256(jd_text.encode("utf-8")).hexdigest()
 
         # --- Resumes (per-run de-dupe) ---
         resume_files = request.files.getlist("resume_files")
@@ -179,7 +207,7 @@ def process():
             return redirect(url_for("actual_calculation"))
 
         seen_hashes_run = {}   # hash -> first filename
-        unique_items = []      # to score once
+        uniques = []           # to score once
 
         for rf in resume_files:
             filename = (rf.filename or "Unknown").strip()
@@ -196,14 +224,20 @@ def process():
             raw_hash = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
             email = extract_email(raw_text)
 
+            # (2) Block JD==Resume same PDF
+            if raw_hash == jd_hash:
+                errors.append(f"'{filename}' was skipped because it is the SAME PDF as the uploaded JD.")
+                continue
+
             # In-run duplicate check
             if raw_hash in seen_hashes_run:
+                # (3) mark duplicate; DO NOT score
                 results.append({
                     "name": filename,
                     "email": email,
                     "duplicate": f"Duplicate of {seen_hashes_run[raw_hash]}",
-                    "score": 0.0,          # will reuse first copy's score
-                    "raw_hash": raw_hash
+                    "score": None,         # <- not computed
+                    "raw_hash": raw_hash,
                 })
                 continue
 
@@ -214,21 +248,19 @@ def process():
             results.append({
                 "name": filename,
                 "email": email,
-                "duplicate": "—",        # run-only policy, no DB-based label
-                "score": 0.0,
-                "raw_hash": raw_hash
+                "duplicate": "—",
+                "score": None,            # filled later
+                "raw_hash": raw_hash,
             })
-            unique_items.append({
+            uniques.append({
                 "filename": filename,
                 "raw_hash": raw_hash,
-                "tokens": cleaned_text.split()
+                "tokens": cleaned_text.split(),
             })
 
-        # --- In-memory scoring for THIS RUN ONLY ---
-        if unique_items:
-            all_docs = [jd_tokens] + [u["tokens"] for u in unique_items]
-
-            # Boost only JD-priority terms at 1.5×
+                # --- In-memory scoring for THIS RUN ONLY ---
+        if uniques:
+            all_docs = [jd_tokens] + [u["tokens"] for u in uniques]
             tfidf_vectors, all_terms = compute_tfidf(
                 all_docs,
                 boost_terms=jd_priority_terms,
@@ -237,18 +269,26 @@ def process():
             job_vec = tfidf_vectors[0]
             resume_vecs = tfidf_vectors[1:]
 
-            # Map hash -> score (0..1)
             hash_to_score = {}
-            for i, u in enumerate(unique_items):
+            for i, u in enumerate(uniques):
                 s = cosine_similarity(job_vec, resume_vecs[i], all_terms)
                 hash_to_score[u["raw_hash"]] = round(float(s), 2)
 
-            # Assign scores; duplicates reuse first copy's score
+            # assign scores to non-duplicates
             for row in results:
-                row["score"] = hash_to_score.get(row["raw_hash"], 0.0)
+                if row.get("duplicate") == "—":
+                    row["score"] = hash_to_score.get(row["raw_hash"], None)
 
-        # Sort & serial
-        results.sort(key=lambda x: x["score"], reverse=True)
+        # === IMPORTANT: rank by similarity (desc), duplicates last ===
+        def sort_key(r):
+            # scored rows first (flag 0), duplicates (None) later (flag 1)
+            is_dup_flag = 0 if r.get("score") is not None else 1
+            score = r.get("score") if r.get("score") is not None else -1.0
+            return (is_dup_flag, -score)
+
+        results.sort(key=sort_key)
+
+        # S.N reflects ranked order
         for i, r in enumerate(results, start=1):
             r["sn"] = i
             r.pop("raw_hash", None)
@@ -257,22 +297,55 @@ def process():
         session["last_errors"] = errors
         return redirect(url_for("results"))
 
+
 @app.route("/results")
 @login_required
 def results():
-    # filtering via ?min=0.3 etc (defaults to no filter)
+    # ?top=10 -> show first N rows by S.N (S.N preserves upload order)
     try:
-        selected_min = float(request.args.get("min", "0"))
+        selected_top = int(request.args.get("top", "10"))
     except ValueError:
-        selected_min = 0.0
+        selected_top = 10
+
     all_rows = session.get("last_results", [])
-    filtered = [r for r in all_rows if r.get("score", 0.0) >= selected_min]
+    # Already in S.N order (from /process). Just slice:
+    trimmed = all_rows[:max(0, selected_top)]
+
     return render_template(
         "results.html",
-        results=filtered,
+        results=trimmed,
         errors=session.get("last_errors", []),
-        selected_min=selected_min
+        selected_top=selected_top
     )
+
+
+# --------- (1) Resume Detail API (for modal) ---------
+@app.get("/api/resume_detail")
+@login_required
+def api_resume_detail():
+    filename = (request.args.get("file") or "").strip()
+    if not filename:
+        return jsonify({"ok": False, "error": "Missing 'file' parameter"}), 400
+
+    doc = get_document_by_filename(filename, "resume")
+    if not doc:
+        return jsonify({"ok": False, "error": "Resume not found"}), 404
+
+    raw_text = doc["raw_text"] or ""
+    info = {
+        "email": extract_email(raw_text) or "",
+        "phone": extract_phone(raw_text) or "",
+        "linkedin": extract_linkedin(raw_text) or "",
+    }
+
+    return jsonify({
+        "ok": True,
+        "filename": filename,
+        "email": info["email"],
+        "phone": info["phone"],
+        "linkedin": info["linkedin"],
+        "text": raw_text
+    })
 
 if __name__ == "__main__":
     app.run(debug=True)

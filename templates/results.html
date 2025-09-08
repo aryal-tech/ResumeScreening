@@ -3,17 +3,15 @@
 {% block content %}
 <h2>Processed Resumes</h2>
 
-<!-- === Filter + Home toolbar === -->
+<!-- === Top-N + Home toolbar === -->
 <form id="filter-form" method="get" action="{{ url_for('results') }}" class="mb-3" style="display:flex;gap:.75rem;align-items:center;">
-  <label for="min" style="font-weight:600;">Filter resumes ≥</label>
-  <select id="min" name="min">
-    {% for v in [0.2,0.3,0.4,0.5,0.6] %}
-      <option value="{{ '%.1f' % v }}" {% if selected_min and selected_min == v %}selected{% endif %}>
-        {{ '%.1f' % v }}
-      </option>
+  <label for="topN" style="font-weight:600;">Show top</label>
+  <select id="topN" name="top">
+    {% for v in [5,10,15,20,30,35] %}
+      <option value="{{ v }}" {% if selected_top and selected_top == v %}selected{% endif %}>{{ v }}</option>
     {% endfor %}
   </select>
-  <!-- <button type="submit" class="btn">Apply</button> -->
+  <span style="opacity:.7;">by S.N</span>
 
   <button type="button" id="btn-home" class="btn" style="margin-left:auto;">
     Go to Home
@@ -43,17 +41,24 @@
     {% for r in results %}
     <tr>
       <td>{{ r.sn }}</td>
-      <td>{{ r.name }}</td>
+      <td>
+        <a href="#" class="resume-link" data-filename="{{ r.name }}">{{ r.name }}</a>
+      </td>
       <td>{{ r.email or '' }}</td>
       <td>{{ r.duplicate or '—' }}</td>
-      <td>{{ '%.2f' % r.score }}</td>
+      <td>
+        {% if r.score is not none %}
+          {{ '%.2f' % r.score }}
+        {% else %}
+          —</td>
+        {% endif %}
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
 {% if not results %}
-<p>No results for the current filter. Try lowering the threshold, or go to
+<p>No results to display. Go to
   <a href="{{ url_for('actual_calculation') }}">Actual Calculation</a> to run screening.</p>
 {% endif %}
 {% endblock %}

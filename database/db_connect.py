@@ -52,3 +52,19 @@ def get_document_by_hash(hashed_text):
     doc = cursor.fetchone()
     conn.close()
     return doc
+
+# ===== NEW: fetch latest by filename & type (used by /api/resume_detail) =====
+def get_document_by_filename(file_name, doc_type):
+    conn = get_connection()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("""
+        SELECT id, file_name, type, raw_text, cleaned_text, hashed_text
+        FROM documents
+        WHERE file_name = %s AND type = %s
+        ORDER BY id DESC
+        LIMIT 1
+    """, (file_name, doc_type))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    return row

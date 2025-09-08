@@ -4,88 +4,142 @@
 {% block content %}
 
 {% if not is_logged_in %}
-  <!-- INFORMATIVE (pre-login) -->
-  <section class="hero hero-informative home-hero">
-    <div class="hero-overlay">
+  <!-- LOGGED-OUT: Hero -->
+  <section class="hero hero-landing">
+    <!-- PLACEHOLDER HERO IMAGE AREA: set --hero-img in CSS if you add a banner -->
+    <div class="hero-content">
       <h1>Automated Resume Screening & Ranking</h1>
-      <p>Upload a Job Description and multiple resumes to get instant, ranked matches. Reduce manual screening time by up to 80%.</p>
+      <p class="sub">Upload a Job Description and multiple resumes to get instant, ranked matches. Save hours of manual review.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="{{ url_for('register') }}">Create Free Account</a>
-        <a class="btn" href="{{ url_for('login') }}">Log In</a>
+        <a class="btn btn-ghost" href="{{ url_for('login') }}">Log In</a>
+      </div>
+      <div class="trust-strip">
+        <span class="badge">PDF-Native</span>
+        <span class="badge">Duplicate Detection</span>
+        <span class="badge">Section-Aware Scoring</span>
       </div>
     </div>
   </section>
 
-  <section class="how-it-works">
+  <!-- How it works -->
+  <section class="section">
     <h2>How it works</h2>
-    <ol class="steps">
-      <li><strong>Upload JD</strong> — paste or upload a PDF.</li>
-      <li><strong>Add resumes</strong> — drag-and-drop multiple PDFs.</li>
-      <li><strong>Get ranked results</strong> — see top matches, email extraction, and duplicate flags.</li>
-    </ol>
-  </section>
-
-  <section class="features">
-    <div class="card">
-      <h3>High-Value JD Weighting</h3>
-      <p>Boosts Responsibilities, Qualifications, Skills, and Experience sections for more precise ranking.</p>
-    </div>
-    <div class="card">
-      <h3>Duplicate Detection</h3>
-      <p>Hashes raw resume content and flags re-uploads automatically.</p>
-    </div>
-    <div class="card">
-      <h3>On-Prem Privacy</h3>
-      <p>All processing happens on your machine/server.</p>
+    <div class="steps-grid">
+      <div class="step-card">
+        <!-- ICON PLACEHOLDER -->
+        <h3>1. Upload JD</h3>
+        <p>Use a well-structured JD (headers like “Responsibilities”, “Requirements”).</p>
+      </div>
+      <div class="step-card">
+        <h3>2. Add Resumes</h3>
+        <p>Drag & drop multiple PDFs. Re-uploads are auto-flagged as duplicates.</p>
+      </div>
+      <div class="step-card">
+        <h3>3. Get Ranked Results</h3>
+        <p>We compute TF-IDF + cosine, boost JD (×1.5) & resume key terms (×2.0), then rank.</p>
+      </div>
     </div>
   </section>
 
-  <section class="specs">
-    <h2>What you can expect</h2>
-    <ul>
-      <li>Uploads: PDF (JD and Resumes)</li>
-      <li>Scoring: TF-IDF + Cosine similarity</li>
-      <li>Outputs: Email, Duplicate flag, Similarity score (%)</li>
-    </ul>
+  <!-- Feature highlights -->
+  <section class="section">
+    <h2>Why teams use ResumeScreener</h2>
+    <div class="cards-grid">
+      <div class="card">
+        <h3>JD Term Boosting</h3>
+        <p>Weight “Responsibilities”, “Qualifications”, and “Skills” so the ranking matches intent.</p>
+      </div>
+      <div class="card">
+        <h3>Noise-Free Tokens</h3>
+        <p>Compound preservation (e.g., C++, .NET), synonym normalization, and curated stop-words.</p>
+      </div>
+      <div class="card">
+        <h3>Actionable Results</h3>
+        <p>Email extraction, duplicate flags, and a clear similarity score for decisions.</p>
+      </div>
+      <div class="card">
+        <h3>Local & Private</h3>
+        <p>Process files on your own machine/server—keep sensitive data in-house.</p>
+      </div>
+    </div>
   </section>
+
+  <!-- FAQ -->
+  <section class="section">
+    <h2>FAQ</h2>
+    <div class="accordion" id="faq">
+      <details class="acc-item" open>
+        <summary>What files are supported?</summary>
+        <div class="acc-body">PDF for both JD and resumes.</div>
+      </details>
+      <details class="acc-item">
+        <summary>How are scores computed?</summary>
+        <div class="acc-body">TF-IDF vectors + cosine similarity with term boosts (JD ×1.5, Resume ×2.0).</div>
+      </details>
+      <details class="acc-item">
+        <summary>How are duplicates handled?</summary>
+        <div class="acc-body">We hash the raw resume text; re-uploads in the same run are marked duplicates and not re-scored.</div>
+      </details>
+    </div>
+  </section>
+
 {% else %}
-  <!-- COMPUTATION-ORIENTED (post-login) -->
-  <section class="hero hero-compute home-hero">
-    <div class="hero-overlay">
-      <h1>Welcome back{{ ', ' ~ session.get('company_name') if session.get('company_name') else '' }}.</h1>
-      <p>Ready to screen? Start a new run or jump to your latest results.</p>
+  <!-- LOGGED-IN: Dashboard hero -->
+  <section class="hero hero-dashboard">
+    <!-- OPTIONAL DASHBOARD IMAGE AREA -->
+    <div class="hero-content">
+      <h1>Welcome{{ ', ' ~ session.get('company_name') if session.get('company_name') else '' }}.</h1>
+      <p class="sub">Start a new screening run or jump back into your latest results.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="{{ url_for('actual_calculation') }}">Start New Screening</a>
         {% if last_results and last_results|length %}
-          <a class="btn" href="{{ url_for('results') }}">View Last Results</a>
+          <a class="btn btn-ghost" href="{{ url_for('results') }}">View Last Results</a>
         {% endif %}
       </div>
     </div>
   </section>
 
-  <section class="quick-tips">
-    <h2>Quick tips</h2>
-    <ul class="tips">
-      <li>Upload one JD and multiple resumes in a single run.</li>
-      <li>Use well-structured JDs—headers like “Responsibilities” and “Qualifications” work best.</li>
-      <li>Re-uploads are automatically flagged as duplicates.</li>
-    </ul>
+  <!-- Quick actions + Recent -->
+  <section class="section">
+    <div class="two-col">
+      <div class="card">
+        <h3>Quick tips</h3>
+        <ul class="tips">
+          <li>Upload one JD and multiple resumes in a single run.</li>
+          <li>Headers like “Responsibilities” and “Qualifications” improve accuracy.</li>
+          <li>Re-uploads are automatically flagged as duplicates.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>What’s new</h3>
+        <ul class="bullet">
+          <li>Refined preprocessing for better accuracy.</li>
+          <li>Top-N results by similarity with duplicates last.</li>
+          <li>Improved UI cards and table polish.</li>
+        </ul>
+      </div>
+    </div>
   </section>
 
   {% if last_results and last_results|length %}
-  <section class="recent">
+  <section class="section">
     <h2>Recent summary</h2>
     <div class="mini-table-wrap">
       <table class="mini-table">
-        <thead><tr><th>#</th><th>Resume</th><th>Email</th><th>Dup</th><th>Score %</th></tr></thead>
+        <thead>
+          <tr>
+            <th>S.N</th><th>Resume</th><th>Email</th><th>Duplicate</th><th>Score (0–1)</th>
+          </tr>
+        </thead>
         <tbody>
           {% for r in last_results[:5] %}
           <tr>
             <td>{{ r.sn }}</td>
-            <td>{{ r.name }}</td>
+            <td><a href="#" class="resume-link" data-filename="{{ r.name }}">{{ r.name }}</a></td>
             <td>{{ r.email or '' }}</td>
             <td>{{ r.duplicate or '—' }}</td>
-            <td>{{ '%.1f' % r.score }}</td>
+            <td>{% if r.score is not none %}{{ '%.2f' % r.score }}{% else %}—{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -95,22 +149,4 @@
   {% endif %}
 {% endif %}
 
-{% endblock %}
-
-{% block footer %}
-<div class="footer-grid">
-  <div>
-    <h4>Contact Us</h4>
-    <p>Email: support@resumescreener.local</p>
-    <p>Phone: +977-9800000000</p>
-  </div>
-  <div>
-    <h4>Address</h4>
-    <p>Kathmandu, Nepal</p>
-  </div>
-  <div>
-    <h4>Hours</h4>
-    <p>Sun–Fri: 9:00–18:00</p>
-  </div>
-</div>
 {% endblock %}
